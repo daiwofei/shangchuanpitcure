@@ -1,0 +1,801 @@
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000000000000000000000000000000000000..628c806bde35234889cb3e9deff6b45dfe22ead7
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,3 @@
++node_modules/
++uploads/*
++!uploads/.gitkeep
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..89305463deaced7e123c716763d4e50064fad71a
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,16 @@
++# 照片灵感墙（初版）
++
++一个不依赖第三方 npm 包的前后端一体化示例项目，支持：
++
++- 上传主流图片格式并填写作品信息。
++- 按点赞数排序展示作品列表。
++- 同一 IP 每天只能给一张作品点赞一次。
++- 前端每 60 秒自动刷新榜单。
++
++## 启动方式
++
++```bash
++npm start
++```
++
++默认访问地址：`http://localhost:3000`
+diff --git a/data/photos.json b/data/photos.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..fe51488c7066f6687ef680d6bfaa4f7768ef205c
+--- /dev/null
++++ b/data/photos.json
+@@ -0,0 +1 @@
++[]
+diff --git a/data/votes.json b/data/votes.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..0967ef424bce6791893e9a57bb952f80fd536e93
+--- /dev/null
++++ b/data/votes.json
+@@ -0,0 +1 @@
++{}
+diff --git a/package.json b/package.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..2bf76ba0c6ddb462c3cb7fd81be3461f7b115395
+--- /dev/null
++++ b/package.json
+@@ -0,0 +1,10 @@
++{
++  "name": "photo-share-board",
++  "version": "0.1.0",
++  "private": true,
++  "description": "Initial photo sharing and voting website",
++  "scripts": {
++    "start": "node server.js",
++    "check": "node --check server.js && node --check public/app.js"
++  }
++}
+diff --git a/public/app.js b/public/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..70594a0085022c28d2a9537ee7a7bbf4c9d560a4
+--- /dev/null
++++ b/public/app.js
+@@ -0,0 +1,172 @@
++const state = {
++  imageData: '',
++  photos: []
++};
++
++const elements = {
++  form: document.getElementById('photoForm'),
++  imageInput: document.getElementById('imageInput'),
++  previewImage: document.getElementById('previewImage'),
++  uploadTitle: document.getElementById('uploadTitle'),
++  uploadHint: document.getElementById('uploadHint'),
++  formStatus: document.getElementById('formStatus'),
++  galleryGrid: document.getElementById('galleryGrid'),
++  refreshNote: document.getElementById('refreshNote'),
++  template: document.getElementById('photoCardTemplate')
++};
++
++function setStatus(message, isError = false) {
++  elements.formStatus.textContent = message;
++  elements.formStatus.style.color = isError ? '#b42318' : '#64718a';
++}
++
++function formatRefreshTime(isoString) {
++  const time = new Date(isoString);
++  return `榜单最近刷新：${time.toLocaleTimeString('zh-CN', { hour12: false })}（每 60 秒自动更新）`;
++}
++
++function toDataUrl(file) {
++  return new Promise((resolve, reject) => {
++    const reader = new FileReader();
++    reader.onload = () => resolve(reader.result);
++    reader.onerror = () => reject(new Error('图片读取失败，请重试。'));
++    reader.readAsDataURL(file);
++  });
++}
++
++async function handleFileSelect(event) {
++  const [file] = event.target.files;
++  if (!file) return;
++
++  if (!file.type.startsWith('image/')) {
++    setStatus('请上传图片格式文件。', true);
++    return;
++  }
++
++  state.imageData = await toDataUrl(file);
++  elements.previewImage.src = state.imageData;
++  elements.previewImage.hidden = false;
++  elements.uploadTitle.textContent = file.name;
++  elements.uploadHint.textContent = '图片预览成功，可以继续填写右侧作品信息。';
++  setStatus('图片已选择，补充完整信息后即可发布。');
++}
++
++function createPhotoCard(photo, index) {
++  const fragment = elements.template.content.cloneNode(true);
++  const card = fragment.querySelector('.photo-card');
++  const image = fragment.querySelector('.card-image');
++  const rank = fragment.querySelector('.card-rank');
++  const title = fragment.querySelector('.card-title');
++  const author = fragment.querySelector('.card-author');
++  const description = fragment.querySelector('.card-description');
++  const scenario = fragment.querySelector('.scenario');
++  const contact = fragment.querySelector('.contact');
++  const likesValue = fragment.querySelector('.likes-value');
++  const likeBtn = fragment.querySelector('.like-btn');
++  const feedback = fragment.querySelector('.vote-feedback');
++
++  rank.textContent = `#${index + 1}`;
++  image.src = photo.imageUrl;
++  title.textContent = photo.title;
++  author.textContent = `作者：${photo.author}`;
++  description.textContent = photo.description;
++  scenario.textContent = photo.scenario;
++  contact.textContent = photo.contact;
++  likesValue.textContent = photo.likes;
++  likeBtn.dataset.id = photo.id;
++  feedback.textContent = `上传于 ${new Date(photo.createdAt).toLocaleDateString('zh-CN')}`;
++
++  likeBtn.addEventListener('click', async () => {
++    likeBtn.disabled = true;
++    try {
++      const response = await fetch(`/api/photos/${photo.id}/vote`, { method: 'POST' });
++      const result = await response.json();
++      if (!response.ok) {
++        throw new Error(result.error || '点赞失败');
++      }
++      likeBtn.classList.add('liked');
++      feedback.textContent = '点赞成功，感谢支持！';
++      await loadPhotos();
++      window.setTimeout(() => likeBtn.classList.remove('liked'), 600);
++    } catch (error) {
++      feedback.textContent = error.message;
++      likeBtn.disabled = false;
++    }
++  });
++
++  return card;
++}
++
++function renderPhotos() {
++  elements.galleryGrid.innerHTML = '';
++  if (!state.photos.length) {
++    elements.galleryGrid.innerHTML = '<div class="photo-card card-body"><h3>还没有作品</h3><p class="card-description">快上传第一张照片，抢占榜单 C 位。</p></div>';
++    return;
++  }
++  state.photos.forEach((photo, index) => {
++    elements.galleryGrid.appendChild(createPhotoCard(photo, index));
++  });
++}
++
++async function loadPhotos() {
++  const response = await fetch('/api/photos');
++  const result = await response.json();
++  state.photos = result.photos || [];
++  renderPhotos();
++  elements.refreshNote.textContent = formatRefreshTime(result.refreshedAt || new Date().toISOString());
++}
++
++async function handleSubmit(event) {
++  event.preventDefault();
++  const formData = new FormData(elements.form);
++  if (!state.imageData) {
++    setStatus('请先上传一张图片。', true);
++    return;
++  }
++
++  const payload = {
++    title: formData.get('title'),
++    author: formData.get('author'),
++    description: formData.get('description'),
++    scenario: formData.get('scenario'),
++    contact: formData.get('contact'),
++    imageData: state.imageData
++  };
++
++  setStatus('正在提交作品，请稍候…');
++  const response = await fetch('/api/photos', {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify(payload)
++  });
++  const result = await response.json();
++  if (!response.ok) {
++    setStatus(result.error || '提交失败，请稍后重试。', true);
++    return;
++  }
++
++  elements.form.reset();
++  state.imageData = '';
++  elements.previewImage.hidden = true;
++  elements.previewImage.removeAttribute('src');
++  elements.uploadTitle.textContent = '点击上传图片';
++  elements.uploadHint.textContent = '支持 PNG、JPG、WebP、GIF、BMP、SVG、HEIC、AVIF 等格式';
++  setStatus(result.message || '提交成功。');
++  await loadPhotos();
++}
++
++elements.imageInput.addEventListener('change', (event) => {
++  handleFileSelect(event).catch((error) => setStatus(error.message, true));
++});
++elements.form.addEventListener('submit', (event) => {
++  handleSubmit(event).catch((error) => setStatus(error.message, true));
++});
++
++loadPhotos().catch(() => {
++  elements.refreshNote.textContent = '作品列表加载失败，请刷新页面重试。';
++});
++window.setInterval(() => {
++  loadPhotos().catch(() => {
++    elements.refreshNote.textContent = '自动刷新失败，请手动刷新。';
++  });
++}, 60 * 1000);
+diff --git a/public/index.html b/public/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..17090f23f128893533125a031f2e33776b7e8d67
+--- /dev/null
++++ b/public/index.html
+@@ -0,0 +1,103 @@
++<!DOCTYPE html>
++<html lang="zh-CN">
++  <head>
++    <meta charset="UTF-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++    <title>照片灵感墙</title>
++    <link rel="stylesheet" href="/public/styles.css" />
++  </head>
++  <body>
++    <div class="page-shell">
++      <header class="hero-card">
++        <div>
++          <p class="eyebrow">照片分享 · 初版</p>
++          <h1>上传你喜欢的照片，让更多人发现它的价值。</h1>
++          <p class="hero-copy">
++            访客可以提交图片、补充作品信息，并在下方按点赞数实时查看热门作品。
++            同一个 IP 每天只能给其中一张作品点赞一次，榜单默认每分钟自动刷新。
++          </p>
++        </div>
++        <div class="hero-badge">Top Picks<br />每分钟刷新</div>
++      </header>
++
++      <main>
++        <section class="composer-card">
++          <div class="upload-panel">
++            <label for="imageInput" class="upload-dropzone" id="uploadDropzone">
++              <input id="imageInput" type="file" accept="image/*" hidden />
++              <div class="upload-icon">📷</div>
++              <strong id="uploadTitle">点击上传图片</strong>
++              <span id="uploadHint">支持 PNG、JPG、WebP、GIF、BMP、SVG、HEIC、AVIF 等格式</span>
++              <img id="previewImage" alt="预览图片" hidden />
++            </label>
++          </div>
++
++          <form class="meta-form" id="photoForm">
++            <div class="field-grid">
++              <label>
++                <span>作品名称</span>
++                <input name="title" maxlength="80" placeholder="例如：黄昏中的城市剪影" required />
++              </label>
++              <label>
++                <span>作者</span>
++                <input name="author" maxlength="40" placeholder="例如：王小明" required />
++              </label>
++              <label>
++                <span>一句话描述</span>
++                <input name="description" maxlength="160" placeholder="一句话描述这个作品的亮点" required />
++              </label>
++              <label>
++                <span>应用场景</span>
++                <input name="scenario" maxlength="60" placeholder="例如：旅行海报 / 品牌宣传 / 社媒配图" required />
++              </label>
++              <label>
++                <span>联系方式</span>
++                <input name="contact" maxlength="80" placeholder="邮箱、微信、手机号等" required />
++              </label>
++            </div>
++            <div class="actions-row">
++              <button type="submit" class="primary-btn">发布作品</button>
++              <p class="form-status" id="formStatus">填写完成后即可提交。</p>
++            </div>
++          </form>
++        </section>
++
++        <section class="gallery-section">
++          <div class="section-head">
++            <div>
++              <p class="eyebrow">人气榜单</p>
++              <h2>按点赞数量排序展示</h2>
++            </div>
++            <p class="refresh-note" id="refreshNote">正在加载作品列表…</p>
++          </div>
++          <div class="gallery-grid" id="galleryGrid"></div>
++        </section>
++      </main>
++    </div>
++
++    <template id="photoCardTemplate">
++      <article class="photo-card">
++        <div class="card-rank"></div>
++        <img class="card-image" alt="作品图片" />
++        <div class="card-body">
++          <div class="card-topline">
++            <h3 class="card-title"></h3>
++            <span class="likes-pill">❤️ <span class="likes-value"></span></span>
++          </div>
++          <p class="card-author"></p>
++          <p class="card-description"></p>
++          <dl class="card-meta">
++            <div><dt>应用场景</dt><dd class="scenario"></dd></div>
++            <div><dt>联系方式</dt><dd class="contact"></dd></div>
++          </dl>
++          <div class="card-actions">
++            <button class="like-btn" type="button">点赞</button>
++            <span class="vote-feedback">点赞后将触发小动画</span>
++          </div>
++        </div>
++      </article>
++    </template>
++
++    <script src="/public/app.js" defer></script>
++  </body>
++</html>
+diff --git a/public/styles.css b/public/styles.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..cd1ad250fd1642b76d2eda943a8e8b81eed70928
+--- /dev/null
++++ b/public/styles.css
+@@ -0,0 +1,151 @@
++:root {
++  color-scheme: light;
++  --bg: #f5f7fb;
++  --card: rgba(255, 255, 255, 0.92);
++  --line: #d9e0ef;
++  --text: #162033;
++  --muted: #64718a;
++  --accent: #4f46e5;
++  --accent-strong: #312e81;
++  --pink: #ef5da8;
++  --shadow: 0 18px 45px rgba(16, 24, 40, 0.12);
++}
++
++* { box-sizing: border-box; }
++body {
++  margin: 0;
++  font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
++  background: radial-gradient(circle at top, #ffffff 0, #eef3ff 35%, var(--bg) 100%);
++  color: var(--text);
++}
++
++button, input { font: inherit; }
++.page-shell { width: min(1180px, calc(100% - 32px)); margin: 32px auto 48px; }
++.hero-card, .composer-card, .photo-card {
++  background: var(--card);
++  border: 1px solid rgba(255, 255, 255, 0.55);
++  box-shadow: var(--shadow);
++  backdrop-filter: blur(16px);
++}
++.hero-card {
++  border-radius: 28px;
++  padding: 32px;
++  display: flex;
++  justify-content: space-between;
++  gap: 24px;
++  align-items: center;
++}
++.eyebrow { margin: 0 0 8px; color: var(--accent); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .82rem; }
++h1, h2, h3, p { margin-top: 0; }
++h1 { font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.1; margin-bottom: 16px; }
++.hero-copy { max-width: 700px; color: var(--muted); font-size: 1.05rem; line-height: 1.8; }
++.hero-badge {
++  min-width: 160px;
++  border-radius: 24px;
++  padding: 28px 20px;
++  background: linear-gradient(135deg, var(--accent), var(--pink));
++  color: white;
++  font-size: 1.35rem;
++  font-weight: 800;
++  text-align: center;
++}
++.composer-card {
++  margin-top: 28px;
++  border-radius: 28px;
++  padding: 24px;
++  display: grid;
++  gap: 24px;
++  grid-template-columns: minmax(280px, 0.95fr) 1.4fr;
++}
++.upload-dropzone {
++  min-height: 100%;
++  border: 2px dashed #b9c4e2;
++  border-radius: 24px;
++  display: grid;
++  place-items: center;
++  gap: 8px;
++  padding: 28px;
++  cursor: pointer;
++  transition: .25s ease;
++  background: linear-gradient(180deg, rgba(79,70,229,.05), rgba(239,93,168,.08));
++  text-align: center;
++}
++.upload-dropzone:hover { border-color: var(--accent); transform: translateY(-2px); }
++.upload-icon { font-size: 2rem; }
++.upload-dropzone strong { font-size: 1.2rem; }
++.upload-dropzone span { color: var(--muted); line-height: 1.6; }
++#previewImage {
++  width: 100%;
++  max-height: 340px;
++  object-fit: cover;
++  border-radius: 18px;
++  margin-top: 12px;
++  box-shadow: 0 12px 30px rgba(79, 70, 229, 0.18);
++}
++.field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
++.field-grid label:last-child { grid-column: 1 / -1; }
++label span { display: block; font-weight: 700; margin-bottom: 10px; }
++input {
++  width: 100%;
++  padding: 14px 16px;
++  border-radius: 16px;
++  border: 1px solid var(--line);
++  background: rgba(255, 255, 255, 0.98);
++}
++input:focus { outline: 2px solid rgba(79,70,229,.25); border-color: var(--accent); }
++.actions-row { margin-top: 18px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
++.primary-btn, .like-btn {
++  border: none;
++  border-radius: 999px;
++  padding: 14px 22px;
++  cursor: pointer;
++  font-weight: 700;
++  transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease;
++}
++.primary-btn { background: linear-gradient(135deg, var(--accent), var(--pink)); color: white; box-shadow: 0 12px 28px rgba(79,70,229,.28); }
++.primary-btn:hover, .like-btn:hover { transform: translateY(-1px) scale(1.01); }
++.form-status, .refresh-note, .card-author, .card-description, .vote-feedback { color: var(--muted); }
++.gallery-section { margin-top: 36px; }
++.section-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; margin-bottom: 18px; }
++.gallery-grid { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
++.photo-card { position: relative; border-radius: 24px; overflow: hidden; }
++.card-rank {
++  position: absolute;
++  top: 16px;
++  left: 16px;
++  z-index: 2;
++  min-width: 46px;
++  height: 46px;
++  border-radius: 50%;
++  display: grid;
++  place-items: center;
++  background: rgba(22, 32, 51, 0.78);
++  color: white;
++  font-weight: 800;
++}
++.card-image { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
++.card-body { padding: 20px; }
++.card-topline { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
++.card-title { margin-bottom: 8px; font-size: 1.2rem; }
++.likes-pill { white-space: nowrap; background: #ffe3f1; color: #b4236d; padding: 8px 12px; border-radius: 999px; font-weight: 700; }
++.card-meta { display: grid; gap: 12px; margin: 18px 0; }
++.card-meta dt { font-size: .82rem; color: var(--muted); margin-bottom: 4px; }
++.card-meta dd { margin: 0; font-weight: 600; }
++.card-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
++.like-btn { background: #162033; color: white; min-width: 104px; }
++.like-btn.liked { background: linear-gradient(135deg, #ef5da8, #f97316); animation: pulseLike .55s ease; }
++.like-btn:disabled { opacity: .65; cursor: not-allowed; }
++@keyframes pulseLike {
++  0% { transform: scale(1); }
++  35% { transform: scale(1.16); }
++  100% { transform: scale(1); }
++}
++@media (max-width: 900px) {
++  .composer-card { grid-template-columns: 1fr; }
++}
++@media (max-width: 720px) {
++  .page-shell { width: min(100% - 20px, 1180px); margin-top: 20px; }
++  .hero-card, .composer-card { padding: 20px; border-radius: 22px; }
++  .hero-card, .section-head, .card-actions { flex-direction: column; align-items: stretch; }
++  .field-grid { grid-template-columns: 1fr; }
++}
+diff --git a/server.js b/server.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..8b02379a658b3d97a6018e85b90de3b513953029
+--- /dev/null
++++ b/server.js
+@@ -0,0 +1,287 @@
++const http = require('http');
++const fs = require('fs');
++const path = require('path');
++const crypto = require('crypto');
++const { URL } = require('url');
++
++const HOST = '0.0.0.0';
++const PORT = process.env.PORT || 3000;
++const PUBLIC_DIR = path.join(__dirname, 'public');
++const UPLOADS_DIR = path.join(__dirname, 'uploads');
++const DATA_DIR = path.join(__dirname, 'data');
++const PHOTOS_FILE = path.join(DATA_DIR, 'photos.json');
++const VOTES_FILE = path.join(DATA_DIR, 'votes.json');
++const ALLOWED_MIME_TYPES = new Set([
++  'image/png',
++  'image/jpeg',
++  'image/jpg',
++  'image/webp',
++  'image/gif',
++  'image/bmp',
++  'image/svg+xml',
++  'image/heic',
++  'image/heif',
++  'image/avif'
++]);
++const STATIC_TYPES = {
++  '.html': 'text/html; charset=utf-8',
++  '.css': 'text/css; charset=utf-8',
++  '.js': 'application/javascript; charset=utf-8',
++  '.json': 'application/json; charset=utf-8',
++  '.png': 'image/png',
++  '.jpg': 'image/jpeg',
++  '.jpeg': 'image/jpeg',
++  '.webp': 'image/webp',
++  '.gif': 'image/gif',
++  '.svg': 'image/svg+xml'
++};
++
++ensureStorage();
++
++function ensureStorage() {
++  for (const dir of [PUBLIC_DIR, UPLOADS_DIR, DATA_DIR]) {
++    fs.mkdirSync(dir, { recursive: true });
++  }
++  if (!fs.existsSync(PHOTOS_FILE)) {
++    fs.writeFileSync(PHOTOS_FILE, '[]\n');
++  }
++  if (!fs.existsSync(VOTES_FILE)) {
++    fs.writeFileSync(VOTES_FILE, '{}\n');
++  }
++}
++
++function readJson(file, fallback) {
++  try {
++    return JSON.parse(fs.readFileSync(file, 'utf8'));
++  } catch (error) {
++    return fallback;
++  }
++}
++
++function writeJson(file, value) {
++  fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
++}
++
++function sendJson(res, statusCode, payload) {
++  res.writeHead(statusCode, {
++    'Content-Type': 'application/json; charset=utf-8',
++    'Cache-Control': 'no-store'
++  });
++  res.end(JSON.stringify(payload));
++}
++
++function sendFile(res, filePath) {
++  const ext = path.extname(filePath).toLowerCase();
++  const contentType = STATIC_TYPES[ext] || 'application/octet-stream';
++  const stream = fs.createReadStream(filePath);
++  stream.on('error', () => {
++    sendJson(res, 404, { error: '文件不存在。' });
++  });
++  res.writeHead(200, { 'Content-Type': contentType });
++  stream.pipe(res);
++}
++
++function getClientIp(req) {
++  const forwarded = req.headers['x-forwarded-for'];
++  if (typeof forwarded === 'string' && forwarded.trim()) {
++    return forwarded.split(',')[0].trim();
++  }
++  return req.socket.remoteAddress || 'unknown';
++}
++
++function hashIp(ip) {
++  return crypto.createHash('sha256').update(ip).digest('hex');
++}
++
++function sanitizeText(value, maxLength) {
++  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, maxLength);
++}
++
++function parseBody(req) {
++  return new Promise((resolve, reject) => {
++    let raw = '';
++    req.on('data', (chunk) => {
++      raw += chunk;
++      if (raw.length > 15 * 1024 * 1024) {
++        reject(new Error('请求体过大。'));
++        req.destroy();
++      }
++    });
++    req.on('end', () => {
++      try {
++        resolve(raw ? JSON.parse(raw) : {});
++      } catch (error) {
++        reject(new Error('无效的 JSON 请求。'));
++      }
++    });
++    req.on('error', reject);
++  });
++}
++
++function getPhotos() {
++  const photos = readJson(PHOTOS_FILE, []);
++  return photos
++    .slice()
++    .sort((a, b) => b.likes - a.likes || new Date(b.createdAt) - new Date(a.createdAt));
++}
++
++function publicPhoto(photo) {
++  return {
++    id: photo.id,
++    title: photo.title,
++    author: photo.author,
++    description: photo.description,
++    scenario: photo.scenario,
++    contact: photo.contact,
++    imageUrl: photo.imageUrl,
++    likes: photo.likes,
++    createdAt: photo.createdAt,
++    imageType: photo.imageType
++  };
++}
++
++function handleGetPhotos(res) {
++  const photos = getPhotos().map(publicPhoto);
++  sendJson(res, 200, { photos, refreshedAt: new Date().toISOString() });
++}
++
++function saveImage(dataUrl) {
++  const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(dataUrl || '');
++  if (!match) {
++    throw new Error('图片格式无效，请重新上传。');
++  }
++  const mimeType = match[1].toLowerCase();
++  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
++    throw new Error('仅支持 PNG、JPG、WebP、GIF、BMP、SVG、HEIC、AVIF 等主流图片格式。');
++  }
++  const ext = mimeType === 'image/jpeg' || mimeType === 'image/jpg'
++    ? '.jpg'
++    : mimeType === 'image/svg+xml'
++      ? '.svg'
++      : '.' + mimeType.split('/')[1].replace('xml+', '');
++  const fileName = `${Date.now()}-${crypto.randomUUID()}${ext}`;
++  const filePath = path.join(UPLOADS_DIR, fileName);
++  fs.writeFileSync(filePath, Buffer.from(match[2], 'base64'));
++  return { imageUrl: `/uploads/${fileName}`, imageType: mimeType };
++}
++
++async function handleCreatePhoto(req, res) {
++  try {
++    const body = await parseBody(req);
++    const title = sanitizeText(body.title, 80);
++    const author = sanitizeText(body.author, 40);
++    const description = sanitizeText(body.description, 160);
++    const scenario = sanitizeText(body.scenario, 60);
++    const contact = sanitizeText(body.contact, 80);
++    const imageData = body.imageData;
++
++    if (!title || !author || !description || !scenario || !contact || !imageData) {
++      return sendJson(res, 400, { error: '请完整填写作品信息并上传图片。' });
++    }
++
++    const image = saveImage(imageData);
++    const photos = readJson(PHOTOS_FILE, []);
++    const record = {
++      id: crypto.randomUUID(),
++      title,
++      author,
++      description,
++      scenario,
++      contact,
++      imageUrl: image.imageUrl,
++      imageType: image.imageType,
++      likes: 0,
++      createdAt: new Date().toISOString()
++    };
++    photos.push(record);
++    writeJson(PHOTOS_FILE, photos);
++    sendJson(res, 201, { photo: publicPhoto(record), message: '图片作品上传成功。' });
++  } catch (error) {
++    sendJson(res, 400, { error: error.message || '上传失败，请稍后再试。' });
++  }
++}
++
++function canVoteToday(voteRecord, today, photoId) {
++  if (!voteRecord || voteRecord.date !== today) {
++    return true;
++  }
++  return voteRecord.photoId === photoId;
++}
++
++async function handleVote(req, res, photoId) {
++  try {
++    const photos = readJson(PHOTOS_FILE, []);
++    const index = photos.findIndex((photo) => photo.id === photoId);
++    if (index === -1) {
++      return sendJson(res, 404, { error: '作品不存在。' });
++    }
++
++    const ipHash = hashIp(getClientIp(req));
++    const today = new Date().toISOString().slice(0, 10);
++    const votes = readJson(VOTES_FILE, {});
++    const voteRecord = votes[ipHash];
++
++    if (!canVoteToday(voteRecord, today, photoId)) {
++      return sendJson(res, 429, { error: '同一个 IP 每天只能给一张作品点赞。' });
++    }
++
++    if (!voteRecord || voteRecord.date !== today) {
++      photos[index].likes += 1;
++      votes[ipHash] = { date: today, photoId };
++      writeJson(PHOTOS_FILE, photos);
++      writeJson(VOTES_FILE, votes);
++    }
++
++    sendJson(res, 200, {
++      message: '点赞成功。',
++      photo: publicPhoto(photos[index]),
++      refreshedAt: new Date().toISOString()
++    });
++  } catch (error) {
++    sendJson(res, 500, { error: '点赞失败，请稍后再试。' });
++  }
++}
++
++function serveStatic(req, res, pathname) {
++  const safePath = path.normalize(path.join(__dirname, pathname));
++  if (!safePath.startsWith(__dirname)) {
++    return sendJson(res, 403, { error: '禁止访问。' });
++  }
++  if (!fs.existsSync(safePath) || fs.statSync(safePath).isDirectory()) {
++    return sendJson(res, 404, { error: '页面不存在。' });
++  }
++  sendFile(res, safePath);
++}
++
++const server = http.createServer(async (req, res) => {
++  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
++  const pathname = parsedUrl.pathname;
++
++  if (req.method === 'GET' && pathname === '/api/photos') {
++    return handleGetPhotos(res);
++  }
++
++  if (req.method === 'POST' && pathname === '/api/photos') {
++    return handleCreatePhoto(req, res);
++  }
++
++  if (req.method === 'POST' && pathname.startsWith('/api/photos/') && pathname.endsWith('/vote')) {
++    const photoId = pathname.split('/')[3];
++    return handleVote(req, res, photoId);
++  }
++
++  if (req.method === 'GET' && pathname.startsWith('/uploads/')) {
++    return serveStatic(req, res, pathname);
++  }
++
++  if (req.method === 'GET' && (pathname === '/' || pathname.startsWith('/public/'))) {
++    const target = pathname === '/' ? '/public/index.html' : pathname;
++    return serveStatic(req, res, target);
++  }
++
++  sendJson(res, 404, { error: '未找到请求资源。' });
++});
++
++server.listen(PORT, HOST, () => {
++  console.log(`Photo share app listening on http://${HOST}:${PORT}`);
++});
+diff --git a/uploads/.gitkeep b/uploads/.gitkeep
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
