@@ -12,7 +12,8 @@ const elements = {
   formStatus: document.getElementById('formStatus'),
   galleryGrid: document.getElementById('galleryGrid'),
   refreshNote: document.getElementById('refreshNote'),
-  template: document.getElementById('photoCardTemplate')
+  template: document.getElementById('photoCardTemplate'),
+  mailConfigNote: document.getElementById('mailConfigNote')
 };
 
 function setStatus(message, isError = false) {
@@ -34,10 +35,23 @@ function toDataUrl(file) {
   });
 }
 
+async function loadConfig() {
+  try {
+    const response = await fetch('/api/config');
+    const result = await response.json();
+    if (result.smtpReady) {
+      elements.mailConfigNote.textContent = `管理员邮箱：${result.moderationEmail}。投稿后将自动发送审核邮件。`;
+    } else {
+      elements.mailConfigNote.textContent = `当前还没有配置 SMTP 邮件参数，所以投稿只会进入待审核数据文件，不会真正发邮件到 ${result.moderationEmail}。请按 README 配置后再试。`;
+    }
+  } catch (error) {
+    elements.mailConfigNote.textContent = '邮箱配置读取失败，请刷新页面后重试。';
+  }
+}
+
 async function handleFileSelect(event) {
   const [file] = event.target.files;
   if (!file) return;
-
   if (!file.type.startsWith('image/')) {
     setStatus('请上传图片格式文件。', true);
     return;
@@ -48,7 +62,7 @@ async function handleFileSelect(event) {
   elements.previewImage.hidden = false;
   elements.uploadTitle.textContent = file.name;
   elements.uploadHint.textContent = '图片预览成功，可以继续填写右侧作品信息。';
-  setStatus('图片已选择，补充完整信息后即可发布。');
+  setStatus('图片已选择，补充完整信息后即可提交审核。');
 }
 
 function createPhotoCard(photo, index) {
@@ -61,6 +75,7 @@ function createPhotoCard(photo, index) {
   const description = fragment.querySelector('.card-description');
   const scenario = fragment.querySelector('.scenario');
   const contact = fragment.querySelector('.contact');
+  const approvedAt = fragment.querySelector('.approved-at');
   const likesValue = fragment.querySelector('.likes-value');
   const likeBtn = fragment.querySelector('.like-btn');
   const feedback = fragment.querySelector('.vote-feedback');
@@ -72,8 +87,8 @@ function createPhotoCard(photo, index) {
   description.textContent = photo.description;
   scenario.textContent = photo.scenario;
   contact.textContent = photo.contact;
+  approvedAt.textContent = photo.approvedAt ? new Date(photo.approvedAt).toLocaleString('zh-CN') : '待审核';
   likesValue.textContent = photo.likes;
-  likeBtn.dataset.id = photo.id;
   feedback.textContent = `上传于 ${new Date(photo.createdAt).toLocaleDateString('zh-CN')}`;
 
   likeBtn.addEventListener('click', async () => {
@@ -81,9 +96,7 @@ function createPhotoCard(photo, index) {
     try {
       const response = await fetch(`/api/photos/${photo.id}/vote`, { method: 'POST' });
       const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || '点赞失败');
-      }
+      if (!response.ok) throw new Error(result.error || '点赞失败');
       likeBtn.classList.add('liked');
       feedback.textContent = '点赞成功，感谢支持！';
       await loadPhotos();
@@ -100,9 +113,10 @@ function createPhotoCard(photo, index) {
 function renderPhotos() {
   elements.galleryGrid.innerHTML = '';
   if (!state.photos.length) {
-    elements.galleryGrid.innerHTML = '<div class="photo-card card-body"><h3>还没有作品</h3><p class="card-description">快上传第一张照片，抢占榜单 C 位。</p></div>';
+    elements.galleryGrid.innerHTML = '<div class="photo-card card-body"><h3>还没有公开作品</h3><p class="card-description">先提交作品并在邮箱里审核通过，榜单才会显示内容。</p></div>';
     return;
   }
+
   state.photos.forEach((photo, index) => {
     elements.galleryGrid.appendChild(createPhotoCard(photo, index));
   });
@@ -133,7 +147,7 @@ async function handleSubmit(event) {
     imageData: state.imageData
   };
 
-  setStatus('正在提交作品，请稍候…');
+  setStatus('正在提交审核，请稍候…');
   const response = await fetch('/api/photos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -151,20 +165,29 @@ async function handleSubmit(event) {
   elements.previewImage.removeAttribute('src');
   elements.uploadTitle.textContent = '点击上传图片';
   elements.uploadHint.textContent = '支持 PNG、JPG、WebP、GIF、BMP、SVG、HEIC、AVIF 等格式';
-  setStatus(result.message || '提交成功。');
+
+  if (result.mailStatus?.skipped) {
+    setStatus(`${result.message} 但目前邮件尚未成功发送：${result.mailStatus.reason}`, true);
+  } else {
+    setStatus(result.message || '提交成功。');
+  }
+
   await loadPhotos();
+  await loadConfig();
 }
 
 elements.imageInput.addEventListener('change', (event) => {
   handleFileSelect(event).catch((error) => setStatus(error.message, true));
 });
+
 elements.form.addEventListener('submit', (event) => {
   handleSubmit(event).catch((error) => setStatus(error.message, true));
 });
 
-loadPhotos().catch(() => {
-  elements.refreshNote.textContent = '作品列表加载失败，请刷新页面重试。';
+Promise.all([loadConfig(), loadPhotos()]).catch(() => {
+  elements.refreshNote.textContent = '页面初始化失败，请刷新重试。';
 });
+
 window.setInterval(() => {
   loadPhotos().catch(() => {
     elements.refreshNote.textContent = '自动刷新失败，请手动刷新。';
