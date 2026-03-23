@@ -1,0 +1,1243 @@
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000000000000000000000000000000000000..628c806bde35234889cb3e9deff6b45dfe22ead7
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,3 @@
++node_modules/
++uploads/*
++!uploads/.gitkeep
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..28aa2dd4cce1770fa32ca40475537145b07effdb
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,168 @@
++# 照片灵感墙（带邮箱审核）
++
++这个版本实现了：
++
++- 用户上传图片并填写作品名称、作者、描述、应用场景、联系方式。
++- 用户提交后，作品先进入“待审核”，不会立刻出现在前台榜单。
++- 系统会尝试把投稿信息和图片发送到管理员邮箱。
++- 邮件中包含“审核通过 / 审核不通过”链接。
++- 你点击“审核通过”后，作品才会进入首页公开榜单。
++- 公开榜单依然支持按点赞数排序、单 IP 每天只能给一张图点赞、每 60 秒自动刷新。
++
++---
++
++## 一、为什么你在 terminal 启动后“没有反应”？
++
++通常是下面几个原因：
++
++1. 你只是运行了命令，但没有打开浏览器访问地址。
++2. 你不知道端口号，实际上页面地址是：`http://127.0.0.1:3000`
++3. 你的命令行窗口被占住了，这是正常现象，说明 Node 服务正在运行。
++4. 如果你关闭了那个 terminal，服务也会一起停止。
++
++正确启动方式：
++
++```bash
++npm start
++```
++
++启动成功后，你会看到类似提示：
++
++- `照片投稿网站已启动: http://127.0.0.1:3000`
++- `如果浏览器没反应，请确认你已经访问上面的地址，而不是只执行了命令。`
++
++然后你再手动打开浏览器，访问：
++
++```text
++http://127.0.0.1:3000
++```
++
++---
++
++## 二、邮箱审核功能的工作流程
++
++### 用户侧
++
++1. 用户在网页上传图片并填写信息。
++2. 用户点击“提交审核”。
++3. 后端先把投稿保存到 `data/pending-submissions.json`。
++4. 这时候该作品还不会显示在首页。
++
++### 管理员侧
++
++1. 你的邮箱 `1113563895@qq.com` 收到一封审核邮件。
++2. 邮件里可以看到：
++   - 图片
++   - 作品名称
++   - 作者
++   - 一句话描述
++   - 应用场景
++   - 联系方式
++3. 邮件里有两个链接：
++   - 审核通过
++   - 审核不通过
++4. 点击“审核通过”后，后端会把这条投稿写入 `data/photos.json`。
++5. 首页刷新后，就能看到这条图片作品。
++
++---
++
++## 三、你必须配置的环境变量
++
++> **重点：QQ 邮箱发信不能只写邮箱账号，还必须使用 QQ 邮箱“SMTP 授权码”，不是 QQ 登录密码。**
++
++先在 QQ 邮箱后台开启 SMTP 服务，然后准备下面这些变量：
++
++### Linux / macOS
++
++```bash
++export SMTP_HOST=smtp.qq.com
++export SMTP_PORT=465
++export SMTP_SECURE=true
++export SMTP_USER=你的QQ邮箱@qq.com
++export SMTP_PASS=你的QQ邮箱SMTP授权码
++export MAIL_FROM=你的QQ邮箱@qq.com
++export MAIL_TO=1113563895@qq.com
++export PUBLIC_BASE_URL=http://127.0.0.1:3000
++npm start
++```
++
++### Windows PowerShell
++
++```powershell
++$env:SMTP_HOST="smtp.qq.com"
++$env:SMTP_PORT="465"
++$env:SMTP_SECURE="true"
++$env:SMTP_USER="你的QQ邮箱@qq.com"
++$env:SMTP_PASS="你的QQ邮箱SMTP授权码"
++$env:MAIL_FROM="你的QQ邮箱@qq.com"
++$env:MAIL_TO="1113563895@qq.com"
++$env:PUBLIC_BASE_URL="http://127.0.0.1:3000"
++npm start
++```
++
++---
++
++## 四、每个文件是做什么的
++
++- `server.js`
++  - 后端主程序
++  - 处理上传、审核、点赞、邮件发送
++- `public/index.html`
++  - 页面结构
++- `public/styles.css`
++  - 页面样式
++- `public/app.js`
++  - 前端交互逻辑
++- `data/pending-submissions.json`
++  - 待审核投稿
++- `data/photos.json`
++  - 已审核通过并公开展示的作品
++- `data/votes.json`
++  - 点赞记录
++
++---
++
++## 五、如果你要自己继续改 Git 仓库，最简单的步骤
++
++下面是最适合新手的方式：
++
++### 第 1 步：查看当前改动
++
++```bash
++git status
++```
++
++### 第 2 步：把所有改动加入暂存区
++
++```bash
++git add .
++```
++
++### 第 3 步：提交一次版本
++
++```bash
++git commit -m "完善邮箱审核投稿流程"
++```
++
++### 第 4 步：推送到你的远程仓库
++
++```bash
++git push
++```
++
++如果你还没有设置远程仓库，需要先执行：
++
++```bash
++git remote -v
++```
++
++看看有没有 `origin`。
++
++---
++
++## 六、当前版本的限制
++
++1. 目前使用 JSON 文件充当轻量数据库，适合初版演示。
++2. 如果以后要正式上线，建议改成 SQLite / MySQL / PostgreSQL。
++3. `PUBLIC_BASE_URL` 必须是管理员邮箱里能真正访问到的地址；如果你只写 `127.0.0.1`，那只有你自己的电脑能点开审核链接。
++4. 如果你以后想让别人从外网提交并且你能正常点邮件审核链接，建议把项目部署到公网服务器。
+diff --git a/data/pending-submissions.json b/data/pending-submissions.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..fe51488c7066f6687ef680d6bfaa4f7768ef205c
+--- /dev/null
++++ b/data/pending-submissions.json
+@@ -0,0 +1 @@
++[]
+diff --git a/data/photos.json b/data/photos.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..fe51488c7066f6687ef680d6bfaa4f7768ef205c
+--- /dev/null
++++ b/data/photos.json
+@@ -0,0 +1 @@
++[]
+diff --git a/data/votes.json b/data/votes.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..0967ef424bce6791893e9a57bb952f80fd536e93
+--- /dev/null
++++ b/data/votes.json
+@@ -0,0 +1 @@
++{}
+diff --git a/package.json b/package.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..2bf76ba0c6ddb462c3cb7fd81be3461f7b115395
+--- /dev/null
++++ b/package.json
+@@ -0,0 +1,10 @@
++{
++  "name": "photo-share-board",
++  "version": "0.1.0",
++  "private": true,
++  "description": "Initial photo sharing and voting website",
++  "scripts": {
++    "start": "node server.js",
++    "check": "node --check server.js && node --check public/app.js"
++  }
++}
+diff --git a/public/app.js b/public/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..526675164d15a63e4eb0d24f50be0ee140843d00
+--- /dev/null
++++ b/public/app.js
+@@ -0,0 +1,195 @@
++const state = {
++  imageData: '',
++  photos: []
++};
++
++const elements = {
++  form: document.getElementById('photoForm'),
++  imageInput: document.getElementById('imageInput'),
++  previewImage: document.getElementById('previewImage'),
++  uploadTitle: document.getElementById('uploadTitle'),
++  uploadHint: document.getElementById('uploadHint'),
++  formStatus: document.getElementById('formStatus'),
++  galleryGrid: document.getElementById('galleryGrid'),
++  refreshNote: document.getElementById('refreshNote'),
++  template: document.getElementById('photoCardTemplate'),
++  mailConfigNote: document.getElementById('mailConfigNote')
++};
++
++function setStatus(message, isError = false) {
++  elements.formStatus.textContent = message;
++  elements.formStatus.style.color = isError ? '#b42318' : '#64718a';
++}
++
++function formatRefreshTime(isoString) {
++  const time = new Date(isoString);
++  return `榜单最近刷新：${time.toLocaleTimeString('zh-CN', { hour12: false })}（每 60 秒自动更新）`;
++}
++
++function toDataUrl(file) {
++  return new Promise((resolve, reject) => {
++    const reader = new FileReader();
++    reader.onload = () => resolve(reader.result);
++    reader.onerror = () => reject(new Error('图片读取失败，请重试。'));
++    reader.readAsDataURL(file);
++  });
++}
++
++async function loadConfig() {
++  try {
++    const response = await fetch('/api/config');
++    const result = await response.json();
++    if (result.smtpReady) {
++      elements.mailConfigNote.textContent = `管理员邮箱：${result.moderationEmail}。投稿后将自动发送审核邮件。`;
++    } else {
++      elements.mailConfigNote.textContent = `当前还没有配置 SMTP 邮件参数，所以投稿只会进入待审核数据文件，不会真正发邮件到 ${result.moderationEmail}。请按 README 配置后再试。`;
++    }
++  } catch (error) {
++    elements.mailConfigNote.textContent = '邮箱配置读取失败，请刷新页面后重试。';
++  }
++}
++
++async function handleFileSelect(event) {
++  const [file] = event.target.files;
++  if (!file) return;
++  if (!file.type.startsWith('image/')) {
++    setStatus('请上传图片格式文件。', true);
++    return;
++  }
++
++  state.imageData = await toDataUrl(file);
++  elements.previewImage.src = state.imageData;
++  elements.previewImage.hidden = false;
++  elements.uploadTitle.textContent = file.name;
++  elements.uploadHint.textContent = '图片预览成功，可以继续填写右侧作品信息。';
++  setStatus('图片已选择，补充完整信息后即可提交审核。');
++}
++
++function createPhotoCard(photo, index) {
++  const fragment = elements.template.content.cloneNode(true);
++  const card = fragment.querySelector('.photo-card');
++  const image = fragment.querySelector('.card-image');
++  const rank = fragment.querySelector('.card-rank');
++  const title = fragment.querySelector('.card-title');
++  const author = fragment.querySelector('.card-author');
++  const description = fragment.querySelector('.card-description');
++  const scenario = fragment.querySelector('.scenario');
++  const contact = fragment.querySelector('.contact');
++  const approvedAt = fragment.querySelector('.approved-at');
++  const likesValue = fragment.querySelector('.likes-value');
++  const likeBtn = fragment.querySelector('.like-btn');
++  const feedback = fragment.querySelector('.vote-feedback');
++
++  rank.textContent = `#${index + 1}`;
++  image.src = photo.imageUrl;
++  title.textContent = photo.title;
++  author.textContent = `作者：${photo.author}`;
++  description.textContent = photo.description;
++  scenario.textContent = photo.scenario;
++  contact.textContent = photo.contact;
++  approvedAt.textContent = photo.approvedAt ? new Date(photo.approvedAt).toLocaleString('zh-CN') : '待审核';
++  likesValue.textContent = photo.likes;
++  feedback.textContent = `上传于 ${new Date(photo.createdAt).toLocaleDateString('zh-CN')}`;
++
++  likeBtn.addEventListener('click', async () => {
++    likeBtn.disabled = true;
++    try {
++      const response = await fetch(`/api/photos/${photo.id}/vote`, { method: 'POST' });
++      const result = await response.json();
++      if (!response.ok) throw new Error(result.error || '点赞失败');
++      likeBtn.classList.add('liked');
++      feedback.textContent = '点赞成功，感谢支持！';
++      await loadPhotos();
++      window.setTimeout(() => likeBtn.classList.remove('liked'), 600);
++    } catch (error) {
++      feedback.textContent = error.message;
++      likeBtn.disabled = false;
++    }
++  });
++
++  return card;
++}
++
++function renderPhotos() {
++  elements.galleryGrid.innerHTML = '';
++  if (!state.photos.length) {
++    elements.galleryGrid.innerHTML = '<div class="photo-card card-body"><h3>还没有公开作品</h3><p class="card-description">先提交作品并在邮箱里审核通过，榜单才会显示内容。</p></div>';
++    return;
++  }
++
++  state.photos.forEach((photo, index) => {
++    elements.galleryGrid.appendChild(createPhotoCard(photo, index));
++  });
++}
++
++async function loadPhotos() {
++  const response = await fetch('/api/photos');
++  const result = await response.json();
++  state.photos = result.photos || [];
++  renderPhotos();
++  elements.refreshNote.textContent = formatRefreshTime(result.refreshedAt || new Date().toISOString());
++}
++
++async function handleSubmit(event) {
++  event.preventDefault();
++  const formData = new FormData(elements.form);
++  if (!state.imageData) {
++    setStatus('请先上传一张图片。', true);
++    return;
++  }
++
++  const payload = {
++    title: formData.get('title'),
++    author: formData.get('author'),
++    description: formData.get('description'),
++    scenario: formData.get('scenario'),
++    contact: formData.get('contact'),
++    imageData: state.imageData
++  };
++
++  setStatus('正在提交审核，请稍候…');
++  const response = await fetch('/api/photos', {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify(payload)
++  });
++  const result = await response.json();
++  if (!response.ok) {
++    setStatus(result.error || '提交失败，请稍后重试。', true);
++    return;
++  }
++
++  elements.form.reset();
++  state.imageData = '';
++  elements.previewImage.hidden = true;
++  elements.previewImage.removeAttribute('src');
++  elements.uploadTitle.textContent = '点击上传图片';
++  elements.uploadHint.textContent = '支持 PNG、JPG、WebP、GIF、BMP、SVG、HEIC、AVIF 等格式';
++
++  if (result.mailStatus?.skipped) {
++    setStatus(`${result.message} 但目前邮件尚未成功发送：${result.mailStatus.reason}`, true);
++  } else {
++    setStatus(result.message || '提交成功。');
++  }
++
++  await loadPhotos();
++  await loadConfig();
++}
++
++elements.imageInput.addEventListener('change', (event) => {
++  handleFileSelect(event).catch((error) => setStatus(error.message, true));
++});
++
++elements.form.addEventListener('submit', (event) => {
++  handleSubmit(event).catch((error) => setStatus(error.message, true));
++});
++
++Promise.all([loadConfig(), loadPhotos()]).catch(() => {
++  elements.refreshNote.textContent = '页面初始化失败，请刷新重试。';
++});
++
++window.setInterval(() => {
++  loadPhotos().catch(() => {
++    elements.refreshNote.textContent = '自动刷新失败，请手动刷新。';
++  });
++}, 60 * 1000);
+diff --git a/public/index.html b/public/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..1ec9bd0b1bf6a01c8b7de244c1ae8afa2529cf9a
+--- /dev/null
++++ b/public/index.html
+@@ -0,0 +1,113 @@
++<!DOCTYPE html>
++<html lang="zh-CN">
++  <head>
++    <meta charset="UTF-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++    <title>照片灵感墙</title>
++    <link rel="stylesheet" href="/public/styles.css" />
++  </head>
++  <body>
++    <div class="page-shell">
++      <header class="hero-card">
++        <div>
++          <p class="eyebrow">照片分享 · 审核版初版</p>
++          <h1>先投稿，后审核，通过后再公开展示。</h1>
++          <p class="hero-copy">
++            访客提交照片后，系统会把图片和完整文字信息发送到管理员邮箱；
++            管理员点击邮件中的“审核通过 / 审核不通过”按钮后，网站才会更新展示结果。
++          </p>
++        </div>
++        <div class="hero-badge">先审核<br />再上墙</div>
++      </header>
++
++      <main>
++        <section class="composer-card">
++          <div class="upload-panel">
++            <label for="imageInput" class="upload-dropzone">
++              <input id="imageInput" type="file" accept="image/*" hidden />
++              <div class="upload-icon">📷</div>
++              <strong id="uploadTitle">点击上传图片</strong>
++              <span id="uploadHint">支持 PNG、JPG、WebP、GIF、BMP、SVG、HEIC、AVIF 等格式</span>
++              <img id="previewImage" alt="预览图片" hidden />
++            </label>
++            <div class="audit-tips">
++              <h3>审核说明</h3>
++              <ul>
++                <li>用户提交后默认进入“待审核”状态。</li>
++                <li>管理员邮箱会收到图片、文字信息和审核按钮。</li>
++                <li>只有审核通过的作品，才会出现在下方榜单。</li>
++              </ul>
++              <p id="mailConfigNote">正在读取邮箱审核配置…</p>
++            </div>
++          </div>
++
++          <form class="meta-form" id="photoForm">
++            <div class="field-grid">
++              <label>
++                <span>作品名称</span>
++                <input name="title" maxlength="80" placeholder="例如：黄昏中的城市剪影" required />
++              </label>
++              <label>
++                <span>作者</span>
++                <input name="author" maxlength="40" placeholder="例如：王小明" required />
++              </label>
++              <label>
++                <span>一句话描述</span>
++                <input name="description" maxlength="160" placeholder="一句话描述这个作品的亮点" required />
++              </label>
++              <label>
++                <span>应用场景</span>
++                <input name="scenario" maxlength="60" placeholder="例如：旅行海报 / 品牌宣传 / 社媒配图" required />
++              </label>
++              <label>
++                <span>联系方式</span>
++                <input name="contact" maxlength="80" placeholder="邮箱、微信、手机号等" required />
++              </label>
++            </div>
++            <div class="actions-row">
++              <button type="submit" class="primary-btn">提交审核</button>
++              <p class="form-status" id="formStatus">填写完成后即可提交审核。</p>
++            </div>
++          </form>
++        </section>
++
++        <section class="gallery-section">
++          <div class="section-head">
++            <div>
++              <p class="eyebrow">公开榜单</p>
++              <h2>这里只展示已审核通过的作品</h2>
++            </div>
++            <p class="refresh-note" id="refreshNote">正在加载作品列表…</p>
++          </div>
++          <div class="gallery-grid" id="galleryGrid"></div>
++        </section>
++      </main>
++    </div>
++
++    <template id="photoCardTemplate">
++      <article class="photo-card">
++        <div class="card-rank"></div>
++        <img class="card-image" alt="作品图片" />
++        <div class="card-body">
++          <div class="card-topline">
++            <h3 class="card-title"></h3>
++            <span class="likes-pill">❤️ <span class="likes-value"></span></span>
++          </div>
++          <p class="card-author"></p>
++          <p class="card-description"></p>
++          <dl class="card-meta">
++            <div><dt>应用场景</dt><dd class="scenario"></dd></div>
++            <div><dt>联系方式</dt><dd class="contact"></dd></div>
++            <div><dt>审核通过时间</dt><dd class="approved-at"></dd></div>
++          </dl>
++          <div class="card-actions">
++            <button class="like-btn" type="button">点赞</button>
++            <span class="vote-feedback">点赞后将触发小动画</span>
++          </div>
++        </div>
++      </article>
++    </template>
++
++    <script src="/public/app.js" defer></script>
++  </body>
++</html>
+diff --git a/public/styles.css b/public/styles.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..8fd86afbf268381882952340e1ee896b53333a8a
+--- /dev/null
++++ b/public/styles.css
+@@ -0,0 +1,152 @@
++:root {
++  color-scheme: light;
++  --bg: #f5f7fb;
++  --card: rgba(255, 255, 255, 0.92);
++  --line: #d9e0ef;
++  --text: #162033;
++  --muted: #64718a;
++  --accent: #4f46e5;
++  --pink: #ef5da8;
++  --shadow: 0 18px 45px rgba(16, 24, 40, 0.12);
++}
++* { box-sizing: border-box; }
++body {
++  margin: 0;
++  font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
++  background: radial-gradient(circle at top, #ffffff 0, #eef3ff 35%, var(--bg) 100%);
++  color: var(--text);
++}
++button, input { font: inherit; }
++.page-shell { width: min(1180px, calc(100% - 32px)); margin: 32px auto 48px; }
++.hero-card, .composer-card, .photo-card, .audit-tips {
++  background: var(--card);
++  border: 1px solid rgba(255, 255, 255, 0.55);
++  box-shadow: var(--shadow);
++  backdrop-filter: blur(16px);
++}
++.hero-card {
++  border-radius: 28px;
++  padding: 32px;
++  display: flex;
++  justify-content: space-between;
++  gap: 24px;
++  align-items: center;
++}
++.eyebrow { margin: 0 0 8px; color: var(--accent); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .82rem; }
++h1, h2, h3, p { margin-top: 0; }
++h1 { font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.1; margin-bottom: 16px; }
++.hero-copy { max-width: 700px; color: var(--muted); font-size: 1.05rem; line-height: 1.8; }
++.hero-badge {
++  min-width: 160px;
++  border-radius: 24px;
++  padding: 28px 20px;
++  background: linear-gradient(135deg, var(--accent), var(--pink));
++  color: white;
++  font-size: 1.35rem;
++  font-weight: 800;
++  text-align: center;
++}
++.composer-card {
++  margin-top: 28px;
++  border-radius: 28px;
++  padding: 24px;
++  display: grid;
++  gap: 24px;
++  grid-template-columns: minmax(280px, 0.95fr) 1.4fr;
++}
++.upload-panel { display: grid; gap: 18px; }
++.upload-dropzone {
++  min-height: 320px;
++  border: 2px dashed #b9c4e2;
++  border-radius: 24px;
++  display: grid;
++  place-items: center;
++  gap: 8px;
++  padding: 28px;
++  cursor: pointer;
++  transition: .25s ease;
++  background: linear-gradient(180deg, rgba(79,70,229,.05), rgba(239,93,168,.08));
++  text-align: center;
++}
++.upload-dropzone:hover { border-color: var(--accent); transform: translateY(-2px); }
++.upload-icon { font-size: 2rem; }
++.upload-dropzone strong { font-size: 1.2rem; }
++.upload-dropzone span { color: var(--muted); line-height: 1.6; }
++#auditBadge, #previewImage {
++  width: 100%;
++  max-height: 340px;
++  object-fit: cover;
++  border-radius: 18px;
++  margin-top: 12px;
++}
++#previewImage { box-shadow: 0 12px 30px rgba(79, 70, 229, 0.18); }
++.audit-tips { border-radius: 20px; padding: 20px; }
++.audit-tips ul { padding-left: 18px; color: var(--muted); line-height: 1.8; }
++#mailConfigNote { color: var(--muted); margin-bottom: 0; }
++.field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
++.field-grid label:last-child { grid-column: 1 / -1; }
++label span { display: block; font-weight: 700; margin-bottom: 10px; }
++input {
++  width: 100%;
++  padding: 14px 16px;
++  border-radius: 16px;
++  border: 1px solid var(--line);
++  background: rgba(255, 255, 255, 0.98);
++}
++input:focus { outline: 2px solid rgba(79,70,229,.25); border-color: var(--accent); }
++.actions-row { margin-top: 18px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
++.primary-btn, .like-btn {
++  border: none;
++  border-radius: 999px;
++  padding: 14px 22px;
++  cursor: pointer;
++  font-weight: 700;
++  transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease;
++}
++.primary-btn { background: linear-gradient(135deg, var(--accent), var(--pink)); color: white; box-shadow: 0 12px 28px rgba(79,70,229,.28); }
++.primary-btn:hover, .like-btn:hover { transform: translateY(-1px) scale(1.01); }
++.form-status, .refresh-note, .card-author, .card-description, .vote-feedback { color: var(--muted); }
++.gallery-section { margin-top: 36px; }
++.section-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; margin-bottom: 18px; }
++.gallery-grid { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
++.photo-card { position: relative; border-radius: 24px; overflow: hidden; }
++.card-rank {
++  position: absolute;
++  top: 16px;
++  left: 16px;
++  z-index: 2;
++  min-width: 46px;
++  height: 46px;
++  border-radius: 50%;
++  display: grid;
++  place-items: center;
++  background: rgba(22, 32, 51, 0.78);
++  color: white;
++  font-weight: 800;
++}
++.card-image { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
++.card-body { padding: 20px; }
++.card-topline { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
++.card-title { margin-bottom: 8px; font-size: 1.2rem; }
++.likes-pill { white-space: nowrap; background: #ffe3f1; color: #b4236d; padding: 8px 12px; border-radius: 999px; font-weight: 700; }
++.card-meta { display: grid; gap: 12px; margin: 18px 0; }
++.card-meta dt { font-size: .82rem; color: var(--muted); margin-bottom: 4px; }
++.card-meta dd { margin: 0; font-weight: 600; }
++.card-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
++.like-btn { background: #162033; color: white; min-width: 104px; }
++.like-btn.liked { background: linear-gradient(135deg, #ef5da8, #f97316); animation: pulseLike .55s ease; }
++.like-btn:disabled { opacity: .65; cursor: not-allowed; }
++@keyframes pulseLike {
++  0% { transform: scale(1); }
++  35% { transform: scale(1.16); }
++  100% { transform: scale(1); }
++}
++@media (max-width: 900px) {
++  .composer-card { grid-template-columns: 1fr; }
++}
++@media (max-width: 720px) {
++  .page-shell { width: min(100% - 20px, 1180px); margin-top: 20px; }
++  .hero-card, .composer-card { padding: 20px; border-radius: 22px; }
++  .hero-card, .section-head, .card-actions { flex-direction: column; align-items: stretch; }
++  .field-grid { grid-template-columns: 1fr; }
++}
+diff --git a/server.js b/server.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..8c15e2f7fbbbc60785e4c6b8e421320d755f06df
+--- /dev/null
++++ b/server.js
+@@ -0,0 +1,536 @@
++const http = require('http');
++const fs = require('fs');
++const path = require('path');
++const crypto = require('crypto');
++const net = require('net');
++const tls = require('tls');
++const { URL } = require('url');
++
++const HOST = '0.0.0.0';
++const PORT = Number(process.env.PORT || 3000);
++const PUBLIC_DIR = path.join(__dirname, 'public');
++const UPLOADS_DIR = path.join(__dirname, 'uploads');
++const DATA_DIR = path.join(__dirname, 'data');
++const PHOTOS_FILE = path.join(DATA_DIR, 'photos.json');
++const PENDING_FILE = path.join(DATA_DIR, 'pending-submissions.json');
++const VOTES_FILE = path.join(DATA_DIR, 'votes.json');
++const ALLOWED_MIME_TYPES = new Set([
++  'image/png',
++  'image/jpeg',
++  'image/jpg',
++  'image/webp',
++  'image/gif',
++  'image/bmp',
++  'image/svg+xml',
++  'image/heic',
++  'image/heif',
++  'image/avif'
++]);
++const STATIC_TYPES = {
++  '.html': 'text/html; charset=utf-8',
++  '.css': 'text/css; charset=utf-8',
++  '.js': 'application/javascript; charset=utf-8',
++  '.json': 'application/json; charset=utf-8',
++  '.png': 'image/png',
++  '.jpg': 'image/jpeg',
++  '.jpeg': 'image/jpeg',
++  '.webp': 'image/webp',
++  '.gif': 'image/gif',
++  '.svg': 'image/svg+xml'
++};
++const MAIL_CONFIG = {
++  host: process.env.SMTP_HOST || 'smtp.qq.com',
++  port: Number(process.env.SMTP_PORT || 465),
++  secure: String(process.env.SMTP_SECURE || 'true') !== 'false',
++  user: process.env.SMTP_USER || '',
++  pass: process.env.SMTP_PASS || '',
++  from: process.env.MAIL_FROM || process.env.SMTP_USER || '',
++  to: process.env.MAIL_TO || '1113563895@qq.com',
++  publicBaseUrl: process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${PORT}`
++};
++
++ensureStorage();
++
++function ensureStorage() {
++  for (const dir of [PUBLIC_DIR, UPLOADS_DIR, DATA_DIR]) {
++    fs.mkdirSync(dir, { recursive: true });
++  }
++  if (!fs.existsSync(PHOTOS_FILE)) fs.writeFileSync(PHOTOS_FILE, '[]\n');
++  if (!fs.existsSync(PENDING_FILE)) fs.writeFileSync(PENDING_FILE, '[]\n');
++  if (!fs.existsSync(VOTES_FILE)) fs.writeFileSync(VOTES_FILE, '{}\n');
++}
++
++function readJson(file, fallback) {
++  try {
++    return JSON.parse(fs.readFileSync(file, 'utf8'));
++  } catch (error) {
++    return fallback;
++  }
++}
++
++function writeJson(file, value) {
++  fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
++}
++
++function sendJson(res, statusCode, payload) {
++  res.writeHead(statusCode, {
++    'Content-Type': 'application/json; charset=utf-8',
++    'Cache-Control': 'no-store'
++  });
++  res.end(JSON.stringify(payload));
++}
++
++function sendHtml(res, statusCode, html) {
++  res.writeHead(statusCode, {
++    'Content-Type': 'text/html; charset=utf-8',
++    'Cache-Control': 'no-store'
++  });
++  res.end(html);
++}
++
++function sendFile(res, filePath) {
++  const ext = path.extname(filePath).toLowerCase();
++  const contentType = STATIC_TYPES[ext] || 'application/octet-stream';
++  const stream = fs.createReadStream(filePath);
++  stream.on('error', () => sendJson(res, 404, { error: '文件不存在。' }));
++  res.writeHead(200, { 'Content-Type': contentType });
++  stream.pipe(res);
++}
++
++function escapeHtml(value) {
++  return String(value || '')
++    .replaceAll('&', '&amp;')
++    .replaceAll('<', '&lt;')
++    .replaceAll('>', '&gt;')
++    .replaceAll('"', '&quot;')
++    .replaceAll("'", '&#39;');
++}
++
++function getClientIp(req) {
++  const forwarded = req.headers['x-forwarded-for'];
++  if (typeof forwarded === 'string' && forwarded.trim()) {
++    return forwarded.split(',')[0].trim();
++  }
++  return req.socket.remoteAddress || 'unknown';
++}
++
++function hashIp(ip) {
++  return crypto.createHash('sha256').update(ip).digest('hex');
++}
++
++function sanitizeText(value, maxLength) {
++  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, maxLength);
++}
++
++function parseBody(req) {
++  return new Promise((resolve, reject) => {
++    const chunks = [];
++    let size = 0;
++    req.on('data', (chunk) => {
++      chunks.push(chunk);
++      size += chunk.length;
++      if (size > 18 * 1024 * 1024) {
++        reject(new Error('请求体过大。'));
++        req.destroy();
++      }
++    });
++    req.on('end', () => {
++      try {
++        const raw = Buffer.concat(chunks).toString('utf8');
++        resolve(raw ? JSON.parse(raw) : {});
++      } catch (error) {
++        reject(new Error('无效的 JSON 请求。'));
++      }
++    });
++    req.on('error', reject);
++  });
++}
++
++function getApprovedPhotos() {
++  return readJson(PHOTOS_FILE, [])
++    .slice()
++    .sort((a, b) => b.likes - a.likes || new Date(b.approvedAt || b.createdAt) - new Date(a.approvedAt || a.createdAt));
++}
++
++function publicPhoto(photo) {
++  return {
++    id: photo.id,
++    title: photo.title,
++    author: photo.author,
++    description: photo.description,
++    scenario: photo.scenario,
++    contact: photo.contact,
++    imageUrl: photo.imageUrl,
++    imageType: photo.imageType,
++    likes: photo.likes,
++    createdAt: photo.createdAt,
++    approvedAt: photo.approvedAt || null
++  };
++}
++
++function handleGetPhotos(res) {
++  sendJson(res, 200, {
++    photos: getApprovedPhotos().map(publicPhoto),
++    refreshedAt: new Date().toISOString()
++  });
++}
++
++function saveImage(dataUrl) {
++  const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(dataUrl || '');
++  if (!match) throw new Error('图片格式无效，请重新上传。');
++
++  const mimeType = match[1].toLowerCase();
++  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
++    throw new Error('仅支持 PNG、JPG、WebP、GIF、BMP、SVG、HEIC、AVIF 等主流图片格式。');
++  }
++
++  const ext = mimeType === 'image/jpeg' || mimeType === 'image/jpg'
++    ? '.jpg'
++    : mimeType === 'image/svg+xml'
++      ? '.svg'
++      : '.' + mimeType.split('/')[1].replace('xml+', '');
++  const fileName = `${Date.now()}-${crypto.randomUUID()}${ext}`;
++  const filePath = path.join(UPLOADS_DIR, fileName);
++  fs.writeFileSync(filePath, Buffer.from(match[2], 'base64'));
++  return { imageUrl: `/uploads/${fileName}`, imageType: mimeType };
++}
++
++function createModerationToken() {
++  return crypto.randomBytes(24).toString('hex');
++}
++
++function renderModerationEmail(submission) {
++  const approveUrl = `${MAIL_CONFIG.publicBaseUrl}/moderation?action=approve&token=${submission.moderationToken}`;
++  const rejectUrl = `${MAIL_CONFIG.publicBaseUrl}/moderation?action=reject&token=${submission.moderationToken}`;
++  const safeTitle = escapeHtml(submission.title);
++  const safeAuthor = escapeHtml(submission.author);
++  const safeDescription = escapeHtml(submission.description);
++  const safeScenario = escapeHtml(submission.scenario);
++  const safeContact = escapeHtml(submission.contact);
++  const safeImage = escapeHtml(`${MAIL_CONFIG.publicBaseUrl}${submission.imageUrl}`);
++
++  return {
++    subject: `【待审核】新的照片投稿：${submission.title}`,
++    html: `
++      <div style="font-family:Arial,sans-serif;line-height:1.7;color:#162033;max-width:720px;margin:auto;">
++        <h2>收到新的照片投稿，等待审核</h2>
++        <p>下面是用户提交的全部信息：</p>
++        <ul>
++          <li><strong>作品名称：</strong>${safeTitle}</li>
++          <li><strong>作者：</strong>${safeAuthor}</li>
++          <li><strong>一句话描述：</strong>${safeDescription}</li>
++          <li><strong>应用场景：</strong>${safeScenario}</li>
++          <li><strong>联系方式：</strong>${safeContact}</li>
++          <li><strong>提交时间：</strong>${escapeHtml(submission.createdAt)}</li>
++        </ul>
++        <p><img src="${safeImage}" alt="投稿图片" style="max-width:100%;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.15);" /></p>
++        <p>
++          <a href="${approveUrl}" style="display:inline-block;padding:12px 20px;border-radius:999px;background:#16a34a;color:#fff;text-decoration:none;margin-right:12px;">审核通过</a>
++          <a href="${rejectUrl}" style="display:inline-block;padding:12px 20px;border-radius:999px;background:#dc2626;color:#fff;text-decoration:none;">审核不通过</a>
++        </p>
++        <p>如果按钮无法点击，也可以直接复制以下链接：</p>
++        <p>通过：<br />${escapeHtml(approveUrl)}</p>
++        <p>拒绝：<br />${escapeHtml(rejectUrl)}</p>
++      </div>
++    `
++  };
++}
++
++function createMimeMessage({ from, to, subject, html }) {
++  const encodedSubject = `=?UTF-8?B?${Buffer.from(subject, 'utf8').toString('base64')}?=`;
++  return [
++    `From: ${from}`,
++    `To: ${to}`,
++    `Subject: ${encodedSubject}`,
++    'MIME-Version: 1.0',
++    'Content-Type: text/html; charset=UTF-8',
++    'Content-Transfer-Encoding: base64',
++    '',
++    Buffer.from(html, 'utf8').toString('base64')
++  ].join('\r\n');
++}
++
++function readSmtpResponse(socket) {
++  return new Promise((resolve, reject) => {
++    let buffer = '';
++    const onData = (chunk) => {
++      buffer += chunk.toString('utf8');
++      const lines = buffer.split(/\r?\n/).filter(Boolean);
++      if (!lines.length) return;
++      const lastLine = lines[lines.length - 1];
++      if (/^\d{3} /.test(lastLine)) {
++        cleanup();
++        resolve(buffer);
++      }
++    };
++    const onError = (error) => {
++      cleanup();
++      reject(error);
++    };
++    const cleanup = () => {
++      socket.off('data', onData);
++      socket.off('error', onError);
++    };
++    socket.on('data', onData);
++    socket.on('error', onError);
++  });
++}
++
++async function sendSmtpCommand(socket, command, expectedCodes) {
++  if (command) socket.write(`${command}\r\n`);
++  const response = await readSmtpResponse(socket);
++  const ok = expectedCodes.some((code) => response.startsWith(String(code)) || response.split(/\r?\n/).some((line) => line.startsWith(String(code))));
++  if (!ok) {
++    throw new Error(`SMTP 命令失败：${command || 'GREETING'} => ${response.trim()}`);
++  }
++  return response;
++}
++
++async function sendModerationEmail(submission) {
++  if (!MAIL_CONFIG.user || !MAIL_CONFIG.pass || !MAIL_CONFIG.from || !MAIL_CONFIG.to) {
++    return { skipped: true, reason: '未配置 SMTP_USER / SMTP_PASS / MAIL_FROM / MAIL_TO，已跳过邮件发送。' };
++  }
++
++  const email = renderModerationEmail(submission);
++  const message = createMimeMessage({
++    from: MAIL_CONFIG.from,
++    to: MAIL_CONFIG.to,
++    subject: email.subject,
++    html: email.html
++  });
++
++  const socket = MAIL_CONFIG.secure
++    ? tls.connect(MAIL_CONFIG.port, MAIL_CONFIG.host, { servername: MAIL_CONFIG.host })
++    : net.createConnection(MAIL_CONFIG.port, MAIL_CONFIG.host);
++
++  await new Promise((resolve, reject) => {
++    socket.once('secureConnect', resolve);
++    socket.once('connect', resolve);
++    socket.once('error', reject);
++  });
++
++  try {
++    await sendSmtpCommand(socket, '', [220]);
++    await sendSmtpCommand(socket, `EHLO ${MAIL_CONFIG.host}`, [250]);
++    await sendSmtpCommand(socket, 'AUTH LOGIN', [334]);
++    await sendSmtpCommand(socket, Buffer.from(MAIL_CONFIG.user, 'utf8').toString('base64'), [334]);
++    await sendSmtpCommand(socket, Buffer.from(MAIL_CONFIG.pass, 'utf8').toString('base64'), [235]);
++    await sendSmtpCommand(socket, `MAIL FROM:<${MAIL_CONFIG.from}>`, [250]);
++    await sendSmtpCommand(socket, `RCPT TO:<${MAIL_CONFIG.to}>`, [250, 251]);
++    await sendSmtpCommand(socket, 'DATA', [354]);
++    socket.write(`${message}\r\n.\r\n`);
++    await sendSmtpCommand(socket, '', [250]);
++    await sendSmtpCommand(socket, 'QUIT', [221]);
++    socket.end();
++    return { skipped: false };
++  } catch (error) {
++    socket.destroy();
++    throw error;
++  }
++}
++
++async function handleCreatePhoto(req, res) {
++  try {
++    const body = await parseBody(req);
++    const title = sanitizeText(body.title, 80);
++    const author = sanitizeText(body.author, 40);
++    const description = sanitizeText(body.description, 160);
++    const scenario = sanitizeText(body.scenario, 60);
++    const contact = sanitizeText(body.contact, 80);
++    const imageData = body.imageData;
++
++    if (!title || !author || !description || !scenario || !contact || !imageData) {
++      return sendJson(res, 400, { error: '请完整填写作品信息并上传图片。' });
++    }
++
++    const image = saveImage(imageData);
++    const pending = readJson(PENDING_FILE, []);
++    const submission = {
++      id: crypto.randomUUID(),
++      moderationToken: createModerationToken(),
++      title,
++      author,
++      description,
++      scenario,
++      contact,
++      imageUrl: image.imageUrl,
++      imageType: image.imageType,
++      likes: 0,
++      status: 'pending',
++      createdAt: new Date().toISOString(),
++      reviewedAt: null,
++      reviewAction: null
++    };
++    pending.push(submission);
++    writeJson(PENDING_FILE, pending);
++
++    let mailResult;
++    try {
++      mailResult = await sendModerationEmail(submission);
++    } catch (mailError) {
++      mailResult = { skipped: true, reason: `邮件发送失败：${mailError.message}` };
++    }
++
++    sendJson(res, 201, {
++      message: '投稿已提交，当前状态为“待审核”。审核通过后才会展示在页面上。',
++      submissionId: submission.id,
++      mailStatus: mailResult
++    });
++  } catch (error) {
++    sendJson(res, 400, { error: error.message || '上传失败，请稍后再试。' });
++  }
++}
++
++function canVoteToday(voteRecord, today, photoId) {
++  if (!voteRecord || voteRecord.date !== today) return true;
++  return voteRecord.photoId === photoId;
++}
++
++async function handleVote(req, res, photoId) {
++  try {
++    const photos = readJson(PHOTOS_FILE, []);
++    const index = photos.findIndex((photo) => photo.id === photoId);
++    if (index === -1) return sendJson(res, 404, { error: '作品不存在或尚未审核通过。' });
++
++    const ipHash = hashIp(getClientIp(req));
++    const today = new Date().toISOString().slice(0, 10);
++    const votes = readJson(VOTES_FILE, {});
++    const voteRecord = votes[ipHash];
++
++    if (!canVoteToday(voteRecord, today, photoId)) {
++      return sendJson(res, 429, { error: '同一个 IP 每天只能给一张作品点赞。' });
++    }
++
++    if (!voteRecord || voteRecord.date !== today) {
++      photos[index].likes += 1;
++      votes[ipHash] = { date: today, photoId };
++      writeJson(PHOTOS_FILE, photos);
++      writeJson(VOTES_FILE, votes);
++    }
++
++    sendJson(res, 200, {
++      message: '点赞成功。',
++      photo: publicPhoto(photos[index]),
++      refreshedAt: new Date().toISOString()
++    });
++  } catch (error) {
++    sendJson(res, 500, { error: '点赞失败，请稍后再试。' });
++  }
++}
++
++function renderModerationResultPage(status, message) {
++  return `<!DOCTYPE html>
++  <html lang="zh-CN">
++    <head>
++      <meta charset="UTF-8" />
++      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++      <title>审核结果</title>
++      <style>
++        body{font-family:Arial,sans-serif;background:#f4f7fb;margin:0;display:grid;place-items:center;min-height:100vh;color:#162033}
++        .card{width:min(92vw,640px);background:#fff;border-radius:24px;padding:32px;box-shadow:0 20px 50px rgba(0,0,0,.12)}
++        .badge{display:inline-block;padding:8px 14px;border-radius:999px;font-weight:700;margin-bottom:16px;background:${status === 'success' ? '#dcfce7' : '#fee2e2'};color:${status === 'success' ? '#166534' : '#991b1b'}}
++        a{color:#4f46e5}
++      </style>
++    </head>
++    <body>
++      <div class="card">
++        <div class="badge">${status === 'success' ? '操作成功' : '操作失败'}</div>
++        <h1>审核处理完成</h1>
++        <p>${escapeHtml(message)}</p>
++        <p>你现在可以返回网站首页刷新作品列表查看结果。</p>
++        <p><a href="/">返回首页</a></p>
++      </div>
++    </body>
++  </html>`;
++}
++
++function handleModerationAction(res, query) {
++  const action = query.get('action');
++  const token = query.get('token');
++  if (!action || !token || !['approve', 'reject'].includes(action)) {
++    return sendHtml(res, 400, renderModerationResultPage('error', '审核链接无效。'));
++  }
++
++  const pending = readJson(PENDING_FILE, []);
++  const index = pending.findIndex((item) => item.moderationToken === token);
++  if (index === -1) {
++    return sendHtml(res, 404, renderModerationResultPage('error', '未找到对应的待审核投稿。'));
++  }
++
++  const submission = pending[index];
++  if (submission.status !== 'pending') {
++    const text = submission.status === 'approved' ? '这个投稿已经审核通过，不需要重复点击。' : '这个投稿已经被拒绝，不需要重复点击。';
++    return sendHtml(res, 200, renderModerationResultPage('success', text));
++  }
++
++  submission.status = action === 'approve' ? 'approved' : 'rejected';
++  submission.reviewAction = action;
++  submission.reviewedAt = new Date().toISOString();
++  pending[index] = submission;
++  writeJson(PENDING_FILE, pending);
++
++  if (action === 'approve') {
++    const photos = readJson(PHOTOS_FILE, []);
++    photos.push({
++      id: submission.id,
++      title: submission.title,
++      author: submission.author,
++      description: submission.description,
++      scenario: submission.scenario,
++      contact: submission.contact,
++      imageUrl: submission.imageUrl,
++      imageType: submission.imageType,
++      likes: submission.likes || 0,
++      createdAt: submission.createdAt,
++      approvedAt: submission.reviewedAt
++    });
++    writeJson(PHOTOS_FILE, photos);
++    return sendHtml(res, 200, renderModerationResultPage('success', '审核通过成功，该图片已经进入网站展示列表。'));
++  }
++
++  return sendHtml(res, 200, renderModerationResultPage('success', '已拒绝该投稿，这张图片不会展示在网站中。'));
++}
++
++function handleGetConfig(res) {
++  sendJson(res, 200, {
++    moderationEmail: MAIL_CONFIG.to,
++    publicBaseUrl: MAIL_CONFIG.publicBaseUrl,
++    smtpReady: Boolean(MAIL_CONFIG.user && MAIL_CONFIG.pass && MAIL_CONFIG.from && MAIL_CONFIG.to)
++  });
++}
++
++function serveStatic(res, pathname) {
++  const safePath = path.normalize(path.join(__dirname, pathname));
++  if (!safePath.startsWith(__dirname)) return sendJson(res, 403, { error: '禁止访问。' });
++  if (!fs.existsSync(safePath) || fs.statSync(safePath).isDirectory()) return sendJson(res, 404, { error: '页面不存在。' });
++  sendFile(res, safePath);
++}
++
++const server = http.createServer(async (req, res) => {
++  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
++  const pathname = parsedUrl.pathname;
++
++  if (req.method === 'GET' && pathname === '/api/photos') return handleGetPhotos(res);
++  if (req.method === 'GET' && pathname === '/api/config') return handleGetConfig(res);
++  if (req.method === 'POST' && pathname === '/api/photos') return handleCreatePhoto(req, res);
++  if (req.method === 'POST' && pathname.startsWith('/api/photos/') && pathname.endsWith('/vote')) {
++    return handleVote(req, res, pathname.split('/')[3]);
++  }
++  if (req.method === 'GET' && pathname === '/moderation') return handleModerationAction(res, parsedUrl.searchParams);
++  if (req.method === 'GET' && pathname.startsWith('/uploads/')) return serveStatic(res, pathname);
++  if (req.method === 'GET' && (pathname === '/' || pathname.startsWith('/public/'))) {
++    return serveStatic(res, pathname === '/' ? '/public/index.html' : pathname);
++  }
++
++  sendJson(res, 404, { error: '未找到请求资源。' });
++});
++
++server.listen(PORT, HOST, () => {
++  console.log('----------------------------------------');
++  console.log(`照片投稿网站已启动: http://127.0.0.1:${PORT}`);
++  console.log(`局域网访问地址: http://localhost:${PORT}`);
++  console.log(`审核通知邮箱: ${MAIL_CONFIG.to}`);
++  console.log(`邮件审核链接基地址: ${MAIL_CONFIG.publicBaseUrl}`);
++  console.log('如果浏览器没反应，请确认你已经访问上面的地址，而不是只执行了命令。');
++  console.log('----------------------------------------');
++});
+diff --git a/uploads/.gitkeep b/uploads/.gitkeep
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
