@@ -11,5 +11,18 @@
     "likes": 1,
     "createdAt": "2026-03-23T06:41:38.744Z",
     "approvedAt": "2026-03-23T06:42:04.719Z"
+  },
+  {
+    "id": "f4ee2276-4b97-4c18-acce-7324102ef23e",
+    "title": "JV测试仪器",
+    "author": "DLT",
+    "description": "测量太阳能电池的稳定性",
+    "scenario": "实验室",
+    "contact": "1113563895",
+    "imageUrl": "/uploads/1774251522399-fb57d7e3-1542-4d6c-b518-87e009aba209.jpg",
+    "imageType": "image/jpeg",
+    "likes": 0,
+    "createdAt": "2026-03-23T07:38:42.403Z",
+    "approvedAt": "2026-03-23T07:39:55.701Z"
   }
 ]
