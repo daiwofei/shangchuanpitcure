@@ -3,6 +3,7 @@ const state = {
   photos: []
 };
 
+const pageType = document.body.dataset.page || 'upload';
 const elements = {
   form: document.getElementById('photoForm'),
   imageInput: document.getElementById('imageInput'),
@@ -17,6 +18,7 @@ const elements = {
 };
 
 function setStatus(message, isError = false) {
+  if (!elements.formStatus) return;
   elements.formStatus.textContent = message;
   elements.formStatus.style.color = isError ? '#b42318' : '#64718a';
 }
@@ -36,6 +38,7 @@ function toDataUrl(file) {
 }
 
 async function loadConfig() {
+  if (!elements.mailConfigNote) return;
   try {
     const response = await fetch('/api/config');
     const result = await response.json();
@@ -61,7 +64,7 @@ async function handleFileSelect(event) {
   elements.previewImage.src = state.imageData;
   elements.previewImage.hidden = false;
   elements.uploadTitle.textContent = file.name;
-  elements.uploadHint.textContent = '图片预览成功，可以继续填写右侧作品信息。';
+  elements.uploadHint.textContent = '图片预览成功，可以继续填写作品信息。';
   setStatus('图片已选择，补充完整信息后即可提交审核。');
 }
 
@@ -111,9 +114,10 @@ function createPhotoCard(photo, index) {
 }
 
 function renderPhotos() {
+  if (!elements.galleryGrid) return;
   elements.galleryGrid.innerHTML = '';
   if (!state.photos.length) {
-    elements.galleryGrid.innerHTML = '<div class="photo-card card-body"><h3>还没有公开作品</h3><p class="card-description">先提交作品并在邮箱里审核通过，榜单才会显示内容。</p></div>';
+    elements.galleryGrid.innerHTML = '<div class="photo-card card-body"><h3>还没有公开作品</h3><p class="card-description">先去上传页面提交作品，并在邮箱里审核通过后，这里才会显示内容。</p></div>';
     return;
   }
 
@@ -123,11 +127,14 @@ function renderPhotos() {
 }
 
 async function loadPhotos() {
+  if (!elements.galleryGrid && !elements.refreshNote) return;
   const response = await fetch('/api/photos');
   const result = await response.json();
   state.photos = result.photos || [];
   renderPhotos();
-  elements.refreshNote.textContent = formatRefreshTime(result.refreshedAt || new Date().toISOString());
+  if (elements.refreshNote) {
+    elements.refreshNote.textContent = formatRefreshTime(result.refreshedAt || new Date().toISOString());
+  }
 }
 
 async function handleSubmit(event) {
@@ -172,24 +179,41 @@ async function handleSubmit(event) {
     setStatus(result.message || '提交成功。');
   }
 
-  await loadPhotos();
   await loadConfig();
 }
 
-elements.imageInput.addEventListener('change', (event) => {
-  handleFileSelect(event).catch((error) => setStatus(error.message, true));
-});
-
-elements.form.addEventListener('submit', (event) => {
-  handleSubmit(event).catch((error) => setStatus(error.message, true));
-});
-
-Promise.all([loadConfig(), loadPhotos()]).catch(() => {
-  elements.refreshNote.textContent = '页面初始化失败，请刷新重试。';
-});
-
-window.setInterval(() => {
-  loadPhotos().catch(() => {
-    elements.refreshNote.textContent = '自动刷新失败，请手动刷新。';
+function initUploadPage() {
+  elements.imageInput.addEventListener('change', (event) => {
+    handleFileSelect(event).catch((error) => setStatus(error.message, true));
   });
-}, 60 * 1000);
+
+  elements.form.addEventListener('submit', (event) => {
+    handleSubmit(event).catch((error) => setStatus(error.message, true));
+  });
+
+  loadConfig();
+}
+
+function initGalleryPage() {
+  loadPhotos().catch(() => {
+    if (elements.refreshNote) {
+      elements.refreshNote.textContent = '页面初始化失败，请刷新重试。';
+    }
+  });
+
+  window.setInterval(() => {
+    loadPhotos().catch(() => {
+      if (elements.refreshNote) {
+        elements.refreshNote.textContent = '自动刷新失败，请手动刷新。';
+      }
+    });
+  }, 60 * 1000);
+}
+
+if (pageType === 'upload') {
+  initUploadPage();
+}
+
+if (pageType === 'gallery') {
+  initGalleryPage();
+}

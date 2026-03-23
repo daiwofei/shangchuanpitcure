@@ -518,8 +518,10 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'GET' && pathname === '/moderation') return handleModerationAction(res, parsedUrl.searchParams);
   if (req.method === 'GET' && pathname.startsWith('/uploads/')) return serveStatic(res, pathname);
-  if (req.method === 'GET' && (pathname === '/' || pathname.startsWith('/public/'))) {
-    return serveStatic(res, pathname === '/' ? '/public/index.html' : pathname);
+  if (req.method === 'GET' && (pathname === '/' || pathname === '/upload' || pathname === '/gallery' || pathname.startsWith('/public/'))) {
+    if (pathname === '/' || pathname === '/upload') return serveStatic(res, '/public/upload.html');
+    if (pathname === '/gallery') return serveStatic(res, '/public/gallery.html');
+    return serveStatic(res, pathname);
   }
 
   sendJson(res, 404, { error: '未找到请求资源。' });

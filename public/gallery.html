@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>照片投稿 - 展示页</title>
+    <link rel="stylesheet" href="/public/styles.css" />
+  </head>
+  <body data-page="gallery">
+    <div class="page-shell">
+      <nav class="top-nav">
+        <a class="nav-brand" href="/upload">照片灵感墙</a>
+        <div class="nav-links">
+          <a class="nav-link" href="/upload">上传作品</a>
+          <a class="nav-link active" href="/gallery">查看展示</a>
+        </div>
+      </nav>
+
+      <header class="hero-card">
+        <div>
+          <p class="eyebrow">照片分享 · 展示页</p>
+          <h1>这里专门展示已经审核通过的作品。</h1>
+          <p class="hero-copy">
+            这是单独的展示页面。只有管理员审核通过的作品才会出现，并且会按点赞数量自动排序，每 60 秒刷新一次。
+          </p>
+        </div>
+        <div class="hero-badge">Gallery<br />Only</div>
+      </header>
+
+      <main>
+        <section class="gallery-section gallery-page-section">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">公开榜单</p>
+              <h2>只展示已审核通过的作品</h2>
+            </div>
+            <div class="gallery-actions">
+              <a class="secondary-link" href="/upload">去上传页面</a>
+              <p class="refresh-note" id="refreshNote">正在加载作品列表…</p>
+            </div>
+          </div>
+          <div class="gallery-grid" id="galleryGrid"></div>
+        </section>
+      </main>
+    </div>
+
+    <template id="photoCardTemplate">
+      <article class="photo-card">
+        <div class="card-rank"></div>
+        <img class="card-image" alt="作品图片" />
+        <div class="card-body">
+          <div class="card-topline">
+            <h3 class="card-title"></h3>
+            <span class="likes-pill">❤️ <span class="likes-value"></span></span>
+          </div>
+          <p class="card-author"></p>
+          <p class="card-description"></p>
+          <dl class="card-meta">
+            <div><dt>应用场景</dt><dd class="scenario"></dd></div>
+            <div><dt>联系方式</dt><dd class="contact"></dd></div>
+            <div><dt>审核通过时间</dt><dd class="approved-at"></dd></div>
+          </dl>
+          <div class="card-actions">
+            <button class="like-btn" type="button">点赞</button>
+            <span class="vote-feedback">点赞后将触发小动画</span>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script src="/public/app.js" defer></script>
+  </body>
+</html>

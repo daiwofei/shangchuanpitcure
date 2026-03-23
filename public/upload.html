@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>照片投稿 - 上传页</title>
+    <link rel="stylesheet" href="/public/styles.css" />
+  </head>
+  <body data-page="upload">
+    <div class="page-shell">
+      <nav class="top-nav">
+        <a class="nav-brand" href="/upload">照片灵感墙</a>
+        <div class="nav-links">
+          <a class="nav-link active" href="/upload">上传作品</a>
+          <a class="nav-link" href="/gallery">查看展示</a>
+        </div>
+      </nav>
+
+      <header class="hero-card">
+        <div>
+          <p class="eyebrow">照片分享 · 上传页</p>
+          <h1>先投稿，后审核，通过后再公开展示。</h1>
+          <p class="hero-copy">
+            这是单独的上传页面。访客在这里上传图片并填写作品信息，提交后会发送到管理员邮箱进行审核。
+          </p>
+        </div>
+        <div class="hero-badge">Upload<br />Only</div>
+      </header>
+
+      <main>
+        <section class="composer-card single-column-card">
+          <div class="upload-panel upload-layout">
+            <label for="imageInput" class="upload-dropzone">
+              <input id="imageInput" type="file" accept="image/*" hidden />
+              <div class="upload-icon">📷</div>
+              <strong id="uploadTitle">点击上传图片</strong>
+              <span id="uploadHint">支持 PNG、JPG、WebP、GIF、BMP、SVG、HEIC、AVIF 等格式</span>
+              <img id="previewImage" alt="预览图片" hidden />
+            </label>
+
+            <div class="audit-tips">
+              <h3>审核说明</h3>
+              <ul>
+                <li>用户提交后默认进入“待审核”状态。</li>
+                <li>管理员邮箱会收到图片、文字信息和审核按钮。</li>
+                <li>只有审核通过的作品，才会出现在展示页。</li>
+              </ul>
+              <p id="mailConfigNote">正在读取邮箱审核配置…</p>
+            </div>
+          </div>
+
+          <form class="meta-form" id="photoForm">
+            <div class="field-grid">
+              <label>
+                <span>作品名称</span>
+                <input name="title" maxlength="80" placeholder="例如：黄昏中的城市剪影" required />
+              </label>
+              <label>
+                <span>作者</span>
+                <input name="author" maxlength="40" placeholder="例如：王小明" required />
+              </label>
+              <label>
+                <span>一句话描述</span>
+                <input name="description" maxlength="160" placeholder="一句话描述这个作品的亮点" required />
+              </label>
+              <label>
+                <span>应用场景</span>
+                <input name="scenario" maxlength="60" placeholder="例如：旅行海报 / 品牌宣传 / 社媒配图" required />
+              </label>
+              <label>
+                <span>联系方式</span>
+                <input name="contact" maxlength="80" placeholder="邮箱、微信、手机号等" required />
+              </label>
+            </div>
+            <div class="actions-row">
+              <button type="submit" class="primary-btn">提交审核</button>
+              <a class="secondary-link" href="/gallery">去查看展示页</a>
+              <p class="form-status" id="formStatus">填写完成后即可提交审核。</p>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <script src="/public/app.js" defer></script>
+  </body>
+</html>
