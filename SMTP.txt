@@ -1,0 +1,9 @@
+export SMTP_HOST=smtp.qq.com
+export SMTP_PORT=465
+export SMTP_SECURE=true
+export SMTP_USER=1113563895@qq.com
+export SMTP_PASS=wcfcjbgpcgflbach
+export MAIL_FROM=1113563895@qq.com
+export MAIL_TO=1113563895@qq.com
+export PUBLIC_BASE_URL=http://127.0.0.1:3000
+npm start

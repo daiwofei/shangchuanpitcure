@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "id": "23379dc8-5e57-4bd3-878d-3adbfc545cf2",
+    "moderationToken": "58833cf621ae8cf9c1af699984880c3f07ed5376e9e5755f",
+    "title": "XRD设备",
+    "author": "DLT",
+    "description": "测试设备",
+    "scenario": "测试",
+    "contact": "1113563895",
+    "imageUrl": "/uploads/1774248098737-8dbe0a10-97db-4771-9ddb-50a95c0cb7d9.jpg",
+    "imageType": "image/jpeg",
+    "likes": 0,
+    "status": "approved",
+    "createdAt": "2026-03-23T06:41:38.744Z",
+    "reviewedAt": "2026-03-23T06:42:04.719Z",
+    "reviewAction": "approve"
+  }
+]
